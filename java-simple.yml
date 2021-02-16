@@ -1,0 +1,45 @@
+---
+# Playbook prepared stage and production environment on two nodes.
+# For deploying and starting simple java app hello-1.0.war
+
+- name: Install stage server and build java app
+  hosts: stage
+  become: yes
+
+  tasks:
+    - name: Install nessesary soft on stage server
+      apt: pkg={{ item }}
+      with_items:
+        - default-jdk
+        - git
+        - maven
+
+    - name: Deliver java app src to stage server from github
+      git:
+        repo: "https://github.com/boxfuse/boxfuse-sample-java-war-hello.git"
+        dest: /home/java/boxfuse
+        clone: yes
+
+    - name: Build java app
+      command: mvn -f /home/java/boxfuse/pom.xml clean package
+
+- name: Start web server and java app
+  hosts: prod
+  become: yes
+
+  tasks:
+    - name: Install nessesary soft on prod server
+      apt: pkg={{ item }}
+      with_items:
+        - default-jre
+        - tomcat9
+
+    - name: Ensure tomcat-service started
+      service:
+        name: tomcat9
+        state: started
+
+    - name: Deliver java app war-file to prod-server
+      synchronize: src=/home/java/boxfuse/target/hello-1.0.war dest=/var/lib/tomcat9/webapps
+      delegate_to: 109.71.9.23
+---
